@@ -94,10 +94,41 @@ struct Bullet
     }
 };
 
+struct Grenade
+{
+    Vec pos;
+    Vec vel;
+    float color[3];
+    struct timespec time;
+    struct Grenade *prev;
+    struct Grenade *next;
+    Grenade()
+    {
+        prev = NULL;
+        next = NULL;
+    }
+};
+
+struct Tower
+{
+    Vec pos;
+    float color[3];
+    int ammo;
+    struct Tower *prev;
+    struct Tower *next;
+    Tower()
+    {
+        prev = NULL;
+        next = NULL;
+    }
+};
+
 #define MAX_POINTS 400
 struct Global {
     int xres, yres;
     int done;
+
+    struct timespec timer;
 
     Shape circle;
     Vec aim;
@@ -110,13 +141,22 @@ struct Global {
 
     int direction;
 
+    int inventory;
+
     Bullet *bhead;
     //int nbullets;
+
+    Grenade *ghead;
+
+    Tower *thead;
+    int totalTowers;
 
     Global() {
         //constructor
         xres = 640;
         yres = 480;
+
+        clock_gettime(CLOCK_REALTIME, &timer);
 
         circle.radius = 20.0;
         circle.center.x = xres/2;
@@ -128,11 +168,18 @@ struct Global {
 
         direction = 0;
 
+        inventory = 1;
+
         bhead = NULL;
         //nbullets = 0;
 
+        ghead = NULL;
+
+        thead = NULL;
+        totalTowers = 0;
     }
 } g;
+
 //-------------------
 //function prototypes
 void initXwindows();
@@ -144,6 +191,8 @@ void physics();
 void showMenu(int x, int y);
 void render();
 void clearScreen();
+
+void tower();
 
 int main()
 {
@@ -160,6 +209,7 @@ int main()
             checkKeys(&e);
         }
         clearScreen();
+        //tower();
         physics();
         render();
         XdbeSwapBuffers(dpy, &swapInfo, 1);
@@ -277,6 +327,28 @@ void checkMouse(XEvent *e)
     }
 }
 
+void shootBullet(float xLocation, float yLocation, float xDirection, float yDirection)
+{
+    Bullet *b = new Bullet;
+
+    struct timespec bt;
+    clock_gettime(CLOCK_REALTIME, &bt);
+    timeDiff(&g.timer, &bt);
+    timeCopy(&g.timer, &bt);
+    timeCopy(&b->time, &bt);
+
+    b->pos.x = xLocation;
+    b->pos.y = yLocation;
+
+    b->vel.x = xDirection;
+    b->vel.y = yDirection;
+
+    b->next = g.bhead;
+    if(g.bhead != NULL)
+        g.bhead->prev = b;
+    g.bhead = b;
+}
+
 void checkKeys(XEvent *e)
 {
     if (e->type != KeyPress)
@@ -292,54 +364,126 @@ void checkKeys(XEvent *e)
         case XK_w:
             g.circle.center.y -= g.circle.radius*2;
             g.direction = 0;
+            tower();
             break;
         case XK_a:
             g.circle.center.x -= g.circle.radius*2;
             g.direction = 1;
+            tower();
             break;
         case XK_s:
             g.circle.center.y += g.circle.radius*2;
             g.direction = 2;
+            tower();
             break;
         case XK_d:
             g.circle.center.x += g.circle.radius*2;
             g.direction = 3;
+            tower();
             break;
 
         case XK_f:
             g.flashlight ^= 1;
             break;
 
+        case XK_1:
+            g.inventory = 1;
+            break;
+
+        case XK_2:
+            g.inventory = 2;
+            break;
+
+        case XK_3:
+            g.inventory = 3;
+            break;
+
         case XK_space:
-            Bullet *b = new Bullet;
+            if(g.inventory == 1)
+            {
+                if(g.direction == 0)
+                    shootBullet(g.circle.center.x, g.circle.center.y, 
+                            0, -g.circle.radius);
+                if(g.direction == 1)
+                    shootBullet(g.circle.center.x, g.circle.center.y,
+                            -g.circle.radius, 0);
+                if(g.direction == 2)
+                    shootBullet(g.circle.center.x, g.circle.center.y, 
+                            0, g.circle.radius);
+                if(g.direction == 3)
+                    shootBullet(g.circle.center.x, g.circle.center.y, 
+                            g.circle.radius, 0);
+            }
+            else if(g.inventory == 2)
+            {
+                Grenade *gr = new Grenade;
 
-            b->pos.x = g.circle.center.x;
-            b->pos.y = g.circle.center.y;
-            if(g.direction == 0)
-            {
-                b->vel.x = 0;
-                b->vel.y = -g.circle.radius;
-            }
-            if(g.direction == 1)
-            {
-                b->vel.x = -g.circle.radius;
-                b->vel.y = 0;
-            }
-            if(g.direction == 2)
-            {
-                b->vel.x = 0;
-                b->vel.y = g.circle.radius;
-            }
-            if(g.direction == 3)
-            {
-                b->vel.x = g.circle.radius;
-                b->vel.y = 0;
-            }
+                struct timespec grt;
+                clock_gettime(CLOCK_REALTIME, &grt);
+                timeDiff(&g.timer, &grt);
+                timeCopy(&g.timer, &grt);
+                timeCopy(&gr->time, &grt);
 
-            b->next = g.bhead;
-            if(g.bhead != NULL)
-                g.bhead->prev = b;
-            g.bhead = b;
+                gr->pos.x = g.circle.center.x;
+                gr->pos.y = g.circle.center.y;
+                if(g.direction == 0)
+                {
+                    gr->vel.x = 0;
+                    gr->vel.y = -g.circle.radius/4;
+                }
+                if(g.direction == 1)
+                {
+                    gr->vel.x = -g.circle.radius/4;
+                    gr->vel.y = 0;
+                }
+                if(g.direction == 2)
+                {
+                    gr->vel.x = 0;
+                    gr->vel.y = g.circle.radius/4;
+                }
+                if(g.direction == 3)
+                {
+                    gr->vel.x = g.circle.radius/4;
+                    gr->vel.y = 0;
+                }
+
+                gr->next = g.ghead;
+                if(g.ghead != NULL)
+                    g.ghead->prev = gr;
+                g.ghead = gr;
+            }
+            else if(g.inventory == 3)
+            {
+                Tower *t = new Tower;
+
+                if(g.direction == 0)
+                {
+                    t->pos.x = g.circle.center.x;
+                    t->pos.y = g.circle.center.y - g.circle.radius*2;
+                }
+                if(g.direction == 1)
+                {
+                    t->pos.x = g.circle.center.x - g.circle.radius*2;
+                    t->pos.y = g.circle.center.y;
+                }
+                if(g.direction == 2)
+                {
+                    t->pos.x = g.circle.center.x;
+                    t->pos.y = g.circle.center.y + g.circle.radius*2;
+                }
+                if(g.direction == 3)
+                {
+                    t->pos.x = g.circle.center.x + g.circle.radius*2;
+                    t->pos.y = g.circle.center.y;
+                }
+                t->ammo = 5;
+
+                t->next = g.thead;
+                if(g.thead != NULL)
+                    g.thead->prev = t;
+                g.thead = t;
+                g.totalTowers++;
+            }
 
             break;
 
@@ -378,9 +522,104 @@ void deleteBullet(Bullet *node)
     node = NULL;
 }
 
+void deleteGrenade(Grenade *node)
+{
+    //remove a node from linked list
+    if(node->prev == NULL)
+    {
+        if(node->next == NULL)
+        {
+            g.ghead = NULL;
+        }
+        else
+        {
+            node->next->prev = NULL;
+            g.ghead = node->next;
+        }
+    }
+    else
+    {
+        if(node->next == NULL)
+        {
+            node->prev->next = NULL;
+        }
+        else
+        {
+            node->prev->next = node->next;
+            node->next->prev = node->prev;
+        }
+    }
+    delete node;
+    node = NULL;
+}
+
+void deleteTower(Tower *node)
+{
+    //remove a node from linked list
+    if(node->prev == NULL)
+    {
+        if(node->next == NULL)
+        {
+            g.thead = NULL;
+        }
+        else
+        {
+            node->next->prev = NULL;
+            g.thead = node->next;
+        }
+    }
+    else
+    {
+        if(node->next == NULL)
+        {
+            node->prev->next = NULL;
+        }
+        else
+        {
+            node->prev->next = node->next;
+            node->next->prev = node->prev;
+        }
+    }
+    delete node;
+    node = NULL;
+    g.totalTowers--;
+}
+
+Vec vecNormalize(Vec v)
+{
+    float length = v.x*v.x + v.y*v.y;
+    if(length == 0.0)
+        return v;
+    length = 1.0 / sqrt(length);
+    v.x *= length;
+    cout << v.x << endl;
+    v.y *= length;
+
+    return v;
+}
+
+void tower(void)
+{
+    Tower *t = g.thead;
+    while(t)
+    {
+        Vec v;
+        v.x = g.circle.center.x - t->pos.x;
+        v.y = g.circle.center.y - t->pos.y;
+        v = vecNormalize(v);
+
+        shootBullet(t->pos.x, t->pos.y, v.x*g.circle.radius, v.y*g.circle.radius);
+
+        t = t->next;
+    }
+}
+
 void physics(void)
 {
     Bullet *b = g.bhead;
+    struct timespec bt;
+    clock_gettime(CLOCK_REALTIME, &bt);
+
     while(b)
     {
         b->pos.x += b->vel.x;
@@ -390,7 +629,45 @@ void physics(void)
         {
             deleteBullet(b);
         }
+
+        double ts = timeDiff(&b->time, &bt);
+        if(ts > 0.3)
+        {
+            deleteBullet(b);
+        }
+
         b = b->next;
+    }
+
+    Grenade *gr = g.ghead;
+    struct timespec grt;
+    clock_gettime(CLOCK_REALTIME, &grt);
+
+    while(gr)
+    {
+        gr->pos.x += gr->vel.x;
+        gr->pos.y += gr->vel.y;
+        if(gr->pos.x < 0.0 || gr->pos.x > (float)g.xres ||
+                gr->pos.y < 0.0 || gr->pos.y > (float)g.yres)
+        {
+            deleteGrenade(gr);
+        }
+
+        double ts = timeDiff(&gr->time, &grt);
+        if(ts > 0.5)
+        {
+            shootBullet(gr->pos.x, gr->pos.y, 0, -g.circle.radius);
+            shootBullet(gr->pos.x, gr->pos.y, g.circle.radius, -g.circle.radius);
+            shootBullet(gr->pos.x, gr->pos.y, g.circle.radius, 0);
+            shootBullet(gr->pos.x, gr->pos.y, g.circle.radius, g.circle.radius);
+            shootBullet(gr->pos.x, gr->pos.y, 0, g.circle.radius);
+            shootBullet(gr->pos.x, gr->pos.y, -g.circle.radius, g.circle.radius);
+            shootBullet(gr->pos.x, gr->pos.y, -g.circle.radius, 0);
+            shootBullet(gr->pos.x, gr->pos.y, -g.circle.radius, -g.circle.radius);
+
+            deleteGrenade(gr);
+        }
+        gr = gr->next;
     }
 }
 
@@ -409,16 +686,35 @@ void showMenu(int x, int y)
 {
     char ts[64];
 
-    setColor3i(100, 255, 255);
-    sprintf(ts,"Jason Thai");
+    setColor3i(255, 100, 100);
+    sprintf(ts,"Health: ");
+    for(int i = 0; i < 5; i++)
+    {
+        strcat(ts, "I ");
+    }
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
-    y += 16;
+    y += 32;
     (g.flashlight==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
     sprintf(ts, "(F) flashlight: %s", (g.flashlight==1)?"ON":"OFF");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-    
+
+    y += 32;
+    (g.inventory==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(1) Gun: %s", (g.inventory==1)?"ON":"OFF");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
     y += 16;
+    (g.inventory==2) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(2) Grenade: %s", (g.inventory==2)?"ON":"OFF");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 16;
+    (g.inventory==3) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(3) Tower: %s", (g.inventory==3)?"ON":"OFF");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
     setColor3i(255,255,255);
     sprintf(ts, "(Space) Shoot");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
@@ -552,6 +848,29 @@ void render(void)
         XFillRectangle(dpy, backBuffer, gc, b->pos.x-g.circle.radius/4, b->pos.y-g.circle.radius/4, 
                 g.circle.radius/2, g.circle.radius/2);
         b = b->next;
+    }
+
+    Grenade *gr = g.ghead;
+    while(gr)
+    {
+        setColor3i(0,255,255);
+        XDrawRectangle(dpy, backBuffer, gc, gr->pos.x-g.circle.radius/4, gr->pos.y-g.circle.radius/4, 
+                g.circle.radius/2, g.circle.radius/2);
+        XFillRectangle(dpy, backBuffer, gc, gr->pos.x-g.circle.radius/4, gr->pos.y-g.circle.radius/4, 
+                g.circle.radius/2, g.circle.radius/2);
+        gr = gr->next;
+    }
+
+    Tower *t = g.thead;
+    while(t)
+    {
+        setColor3i(0, 0, 255);
+
+        XDrawArc(dpy, backBuffer, gc, t->pos.x-g.circle.radius, t->pos.y-g.circle.radius, 
+                g.circle.radius*2, g.circle.radius*2, 0, 360*64);
+        XFillArc(dpy, backBuffer, gc, t->pos.x-g.circle.radius, t->pos.y-g.circle.radius, 
+                g.circle.radius*2, g.circle.radius*2, 0, 360*64);
+        t = t->next;
     }
 }
 
