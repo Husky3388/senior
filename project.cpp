@@ -123,6 +123,25 @@ struct Tower
     }
 };
 
+struct Resource
+{
+    int resourceA;
+    int resourceB;
+    int resourceC;
+    int bullets;
+    int grenades;
+    int towers;
+    Resource()
+    {
+        resourceA = 5;
+        resourceB = 5;
+        resourceC = 5;
+        bullets = 5;
+        grenades = 5;
+        towers = 5;
+    }
+};
+
 #define MAX_POINTS 400
 struct Global {
     int xres, yres;
@@ -151,6 +170,10 @@ struct Global {
     Tower *thead;
     int totalTowers;
 
+    Resource resource;
+
+    bool combine;
+
     Global() {
         //constructor
         xres = 640;
@@ -177,6 +200,8 @@ struct Global {
 
         thead = NULL;
         totalTowers = 0;
+
+        combine = 0;
     }
 } g;
 
@@ -387,105 +412,153 @@ void checkKeys(XEvent *e)
             break;
 
         case XK_1:
-            g.inventory = 1;
+            if(g.combine == 0)
+                g.inventory = 1;
+            else if(g.combine == 1 && g.resource.resourceA > 0 && g.resource.resourceB > 0)
+            {
+                g.resource.resourceA--;
+                g.resource.resourceB--;
+                g.resource.bullets += 3;
+            }
             break;
 
         case XK_2:
-            g.inventory = 2;
+            if(g.combine == 0)
+                g.inventory = 2;
+            else if(g.combine == 1 && g.resource.resourceA > 0 && g.resource.resourceC > 0)
+            {
+                g.resource.resourceA--;
+                g.resource.resourceC--;
+                g.resource.grenades++;;
+            }
             break;
 
         case XK_3:
-            g.inventory = 3;
+            if(g.combine == 0)
+                g.inventory = 3;
+            else if(g.combine == 1 && g.resource.resourceB > 0 && g.resource.resourceC > 0)
+            {
+                g.resource.resourceB--;
+                g.resource.resourceC--;
+                g.resource.towers++;;
+            }
             break;
 
         case XK_space:
             if(g.inventory == 1)
             {
-                if(g.direction == 0)
-                    shootBullet(g.circle.center.x, g.circle.center.y, 
-                            0, -g.circle.radius);
-                if(g.direction == 1)
-                    shootBullet(g.circle.center.x, g.circle.center.y,
-                            -g.circle.radius, 0);
-                if(g.direction == 2)
-                    shootBullet(g.circle.center.x, g.circle.center.y, 
-                            0, g.circle.radius);
-                if(g.direction == 3)
-                    shootBullet(g.circle.center.x, g.circle.center.y, 
-                            g.circle.radius, 0);
+                if(g.resource.bullets > 0)
+                {
+                    if(g.direction == 0)
+                        shootBullet(g.circle.center.x, g.circle.center.y, 
+                                0, -g.circle.radius);
+                    if(g.direction == 1)
+                        shootBullet(g.circle.center.x, g.circle.center.y,
+                                -g.circle.radius, 0);
+                    if(g.direction == 2)
+                        shootBullet(g.circle.center.x, g.circle.center.y, 
+                                0, g.circle.radius);
+                    if(g.direction == 3)
+                        shootBullet(g.circle.center.x, g.circle.center.y, 
+                                g.circle.radius, 0);
+                    g.resource.bullets--;
+                }
             }
             else if(g.inventory == 2)
             {
-                Grenade *gr = new Grenade;
+                if(g.resource.grenades > 0)
+                {
+                    Grenade *gr = new Grenade;
 
-                struct timespec grt;
-                clock_gettime(CLOCK_REALTIME, &grt);
-                timeDiff(&g.timer, &grt);
-                timeCopy(&g.timer, &grt);
-                timeCopy(&gr->time, &grt);
+                    struct timespec grt;
+                    clock_gettime(CLOCK_REALTIME, &grt);
+                    timeDiff(&g.timer, &grt);
+                    timeCopy(&g.timer, &grt);
+                    timeCopy(&gr->time, &grt);
 
-                gr->pos.x = g.circle.center.x;
-                gr->pos.y = g.circle.center.y;
-                if(g.direction == 0)
-                {
-                    gr->vel.x = 0;
-                    gr->vel.y = -g.circle.radius/4;
-                }
-                if(g.direction == 1)
-                {
-                    gr->vel.x = -g.circle.radius/4;
-                    gr->vel.y = 0;
-                }
-                if(g.direction == 2)
-                {
-                    gr->vel.x = 0;
-                    gr->vel.y = g.circle.radius/4;
-                }
-                if(g.direction == 3)
-                {
-                    gr->vel.x = g.circle.radius/4;
-                    gr->vel.y = 0;
-                }
+                    gr->pos.x = g.circle.center.x;
+                    gr->pos.y = g.circle.center.y;
+                    if(g.direction == 0)
+                    {
+                        gr->vel.x = 0;
+                        gr->vel.y = -g.circle.radius/4;
+                    }
+                    if(g.direction == 1)
+                    {
+                        gr->vel.x = -g.circle.radius/4;
+                        gr->vel.y = 0;
+                    }
+                    if(g.direction == 2)
+                    {
+                        gr->vel.x = 0;
+                        gr->vel.y = g.circle.radius/4;
+                    }
+                    if(g.direction == 3)
+                    {
+                        gr->vel.x = g.circle.radius/4;
+                        gr->vel.y = 0;
+                    }
 
-                gr->next = g.ghead;
-                if(g.ghead != NULL)
-                    g.ghead->prev = gr;
-                g.ghead = gr;
+                    gr->next = g.ghead;
+                    if(g.ghead != NULL)
+                        g.ghead->prev = gr;
+                    g.ghead = gr;
+                    g.resource.grenades--;
+                }
             }
             else if(g.inventory == 3)
             {
-                Tower *t = new Tower;
+                if(g.resource.towers > 0)
+                {
+                    Tower *t = new Tower;
 
-                if(g.direction == 0)
-                {
-                    t->pos.x = g.circle.center.x;
-                    t->pos.y = g.circle.center.y - g.circle.radius*2;
-                }
-                if(g.direction == 1)
-                {
-                    t->pos.x = g.circle.center.x - g.circle.radius*2;
-                    t->pos.y = g.circle.center.y;
-                }
-                if(g.direction == 2)
-                {
-                    t->pos.x = g.circle.center.x;
-                    t->pos.y = g.circle.center.y + g.circle.radius*2;
-                }
-                if(g.direction == 3)
-                {
-                    t->pos.x = g.circle.center.x + g.circle.radius*2;
-                    t->pos.y = g.circle.center.y;
-                }
-                t->ammo = 5;
+                    if(g.direction == 0)
+                    {
+                        t->pos.x = g.circle.center.x;
+                        t->pos.y = g.circle.center.y - g.circle.radius*2;
+                    }
+                    if(g.direction == 1)
+                    {
+                        t->pos.x = g.circle.center.x - g.circle.radius*2;
+                        t->pos.y = g.circle.center.y;
+                    }
+                    if(g.direction == 2)
+                    {
+                        t->pos.x = g.circle.center.x;
+                        t->pos.y = g.circle.center.y + g.circle.radius*2;
+                    }
+                    if(g.direction == 3)
+                    {
+                        t->pos.x = g.circle.center.x + g.circle.radius*2;
+                        t->pos.y = g.circle.center.y;
+                    }
+                    t->ammo = 5;
 
-                t->next = g.thead;
-                if(g.thead != NULL)
-                    g.thead->prev = t;
-                g.thead = t;
-                g.totalTowers++;
+                    t->next = g.thead;
+                    if(g.thead != NULL)
+                        g.thead->prev = t;
+                    g.thead = t;
+                    g.totalTowers++;
+                    g.resource.towers--;
+                }
             }
 
             break;
+
+        case XK_c:
+            g.combine ^= 1;
+            break;
+
+            // DEBUG ///////////////////////////////////////////////
+        case XK_r:
+            g.resource.resourceA = 5;
+            g.resource.resourceB = 5;
+            g.resource.resourceC = 5;
+            g.resource.bullets = 5;
+            g.resource.grenades = 5;
+            g.resource.towers = 5;
+            break;
+            // DEBUG ///////////////////////////////////////////////
 
     }
     clearScreen();
@@ -592,7 +665,7 @@ Vec vecNormalize(Vec v)
         return v;
     length = 1.0 / sqrt(length);
     v.x *= length;
-    cout << v.x << endl;
+    //cout << v.x << endl;
     v.y *= length;
 
     return v;
@@ -610,6 +683,10 @@ void tower(void)
 
         shootBullet(t->pos.x, t->pos.y, v.x*g.circle.radius, v.y*g.circle.radius);
 
+        t->ammo--;
+
+        if(t->ammo <= 0)
+            deleteTower(t);
         t = t->next;
     }
 }
@@ -696,27 +773,79 @@ void showMenu(int x, int y)
 
     y += 32;
     (g.flashlight==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "(F) flashlight: %s", (g.flashlight==1)?"ON":"OFF");
+    sprintf(ts, "(F) Flashlight: %s", (g.flashlight==1)?"ON":"OFF");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
+    if(g.combine == 0)
+    {
+        y += 32;
+        (g.inventory==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "(1) Gun: %s", (g.inventory==1)?"ON":"OFF");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+        y += 16;
+        (g.inventory==2) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "(2) Grenade: %s", (g.inventory==2)?"ON":"OFF");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+        y += 16;
+        (g.inventory==3) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "(3) Tower: %s", (g.inventory==3)?"ON":"OFF");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    }
+    else if(g.combine == 1)
+    {
+        y += 32;
+        (g.resource.resourceA > 0 && g.resource.resourceB > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "1 ResourceA + 1 ResourceB = 3 bullets");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+        y += 16;
+        (g.resource.resourceA > 0 && g.resource.resourceC > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "1 ResourceA + 1 ResourceC = 1 grenade");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+        y += 16;
+        (g.resource.resourceB > 0 && g.resource.resourceC > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "1 ResourceB + 1 ResourceC = 1 tower");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    }
     y += 32;
-    (g.inventory==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "(1) Gun: %s", (g.inventory==1)?"ON":"OFF");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    (g.inventory==2) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "(2) Grenade: %s", (g.inventory==2)?"ON":"OFF");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    (g.inventory==3) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "(3) Tower: %s", (g.inventory==3)?"ON":"OFF");
+    setColor3i(255,255,255);
+    sprintf(ts, "(Space) Shoot");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
     y += 32;
     setColor3i(255,255,255);
-    sprintf(ts, "(Space) Shoot");
+    sprintf(ts, "Resource A: %i", g.resource.resourceA);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Resource B: %i", g.resource.resourceB);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Resource C: %i", g.resource.resourceC);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 32;
+    setColor3i(255,255,255);
+    sprintf(ts, "Bullets: %i", g.resource.bullets);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Grenades: %i", g.resource.grenades);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Towers: %i", g.resource.towers);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
+    (g.combine==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(C) Combine: %s", (g.combine==1)?"ON":"OFF");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
+    setColor3i(0,255,255);
+    sprintf(ts, "(DEBUG) (R) Reset resources");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 }
 
