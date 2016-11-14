@@ -142,6 +142,13 @@ struct Resource
     }
 };
 
+struct Grid
+{
+    int size;
+    int column[100];
+    int row[100];
+};
+
 #define MAX_POINTS 400
 struct Global {
     int xres, yres;
@@ -174,6 +181,12 @@ struct Global {
 
     bool combine;
 
+    bool title;
+    int menu;
+
+    Grid grid;
+    bool drawGrid;
+
     Global() {
         //constructor
         xres = 640;
@@ -182,8 +195,8 @@ struct Global {
         clock_gettime(CLOCK_REALTIME, &timer);
 
         circle.radius = 20.0;
-        circle.center.x = xres/2;
-        circle.center.y = yres/2;
+        circle.center.x = xres/2 - circle.radius;
+        circle.center.y = yres/2 - circle.radius;
 
         flashlight = 0;
         angle = 3.14/4;
@@ -202,6 +215,11 @@ struct Global {
         totalTowers = 0;
 
         combine = 0;
+
+        title = 1;
+        menu = 0;
+
+        drawGrid = false;
     }
 } g;
 
@@ -219,8 +237,11 @@ void clearScreen();
 
 void tower();
 
+void initGrid();
+
 int main()
 {
+    initGrid();
     srand((unsigned)time(NULL));
     initXwindows();
     while (!g.done) {
@@ -381,185 +402,228 @@ void checkKeys(XEvent *e)
     //A key was pressed
     int key = XLookupKeysym(&e->xkey, 0);
 
-    switch (key) {
-        case XK_Escape:
-            //quitting the program
-            g.done=1;
-            break;
-        case XK_w:
-            g.circle.center.y -= g.circle.radius*2;
-            g.direction = 0;
-            tower();
-            break;
-        case XK_a:
-            g.circle.center.x -= g.circle.radius*2;
-            g.direction = 1;
-            tower();
-            break;
-        case XK_s:
-            g.circle.center.y += g.circle.radius*2;
-            g.direction = 2;
-            tower();
-            break;
-        case XK_d:
-            g.circle.center.x += g.circle.radius*2;
-            g.direction = 3;
-            tower();
-            break;
-
-        case XK_f:
-            g.flashlight ^= 1;
-            break;
-
-        case XK_1:
-            if(g.combine == 0)
-                g.inventory = 1;
-            else if(g.combine == 1 && g.resource.resourceA > 0 && g.resource.resourceB > 0)
-            {
-                g.resource.resourceA--;
-                g.resource.resourceB--;
-                g.resource.bullets += 3;
-            }
-            break;
-
-        case XK_2:
-            if(g.combine == 0)
-                g.inventory = 2;
-            else if(g.combine == 1 && g.resource.resourceA > 0 && g.resource.resourceC > 0)
-            {
-                g.resource.resourceA--;
-                g.resource.resourceC--;
-                g.resource.grenades++;;
-            }
-            break;
-
-        case XK_3:
-            if(g.combine == 0)
-                g.inventory = 3;
-            else if(g.combine == 1 && g.resource.resourceB > 0 && g.resource.resourceC > 0)
-            {
-                g.resource.resourceB--;
-                g.resource.resourceC--;
-                g.resource.towers++;;
-            }
-            break;
-
-        case XK_space:
-            if(g.inventory == 1)
-            {
-                if(g.resource.bullets > 0)
+    if(g.title)
+    {
+        switch(key)
+        {
+            case XK_Escape:
+                g.done = 1;
+                break;
+            case XK_w:
+                g.menu = (g.menu+1)%2;
+                break;
+            case XK_s:
+                g.menu = (g.menu+1)%2;
+                break;
+            case XK_space:
+                if(g.menu == 0)
                 {
-                    if(g.direction == 0)
-                        shootBullet(g.circle.center.x, g.circle.center.y, 
-                                0, -g.circle.radius);
-                    if(g.direction == 1)
-                        shootBullet(g.circle.center.x, g.circle.center.y,
-                                -g.circle.radius, 0);
-                    if(g.direction == 2)
-                        shootBullet(g.circle.center.x, g.circle.center.y, 
-                                0, g.circle.radius);
-                    if(g.direction == 3)
-                        shootBullet(g.circle.center.x, g.circle.center.y, 
-                                g.circle.radius, 0);
-                    g.resource.bullets--;
+                    g.title ^= 1;
                 }
-            }
-            else if(g.inventory == 2)
-            {
-                if(g.resource.grenades > 0)
+                else if(g.menu == 1)
                 {
-                    Grenade *gr = new Grenade;
-
-                    struct timespec grt;
-                    clock_gettime(CLOCK_REALTIME, &grt);
-                    timeDiff(&g.timer, &grt);
-                    timeCopy(&g.timer, &grt);
-                    timeCopy(&gr->time, &grt);
-
-                    gr->pos.x = g.circle.center.x;
-                    gr->pos.y = g.circle.center.y;
-                    if(g.direction == 0)
-                    {
-                        gr->vel.x = 0;
-                        gr->vel.y = -g.circle.radius/4;
-                    }
-                    if(g.direction == 1)
-                    {
-                        gr->vel.x = -g.circle.radius/4;
-                        gr->vel.y = 0;
-                    }
-                    if(g.direction == 2)
-                    {
-                        gr->vel.x = 0;
-                        gr->vel.y = g.circle.radius/4;
-                    }
-                    if(g.direction == 3)
-                    {
-                        gr->vel.x = g.circle.radius/4;
-                        gr->vel.y = 0;
-                    }
-
-                    gr->next = g.ghead;
-                    if(g.ghead != NULL)
-                        g.ghead->prev = gr;
-                    g.ghead = gr;
-                    g.resource.grenades--;
+                    g.done = 1;
                 }
-            }
-            else if(g.inventory == 3)
-            {
-                if(g.resource.towers > 0)
+                break;
+        }
+    }
+    else if(!g.title)
+    {
+        switch (key) {
+            case XK_Escape:
+                //quitting the program
+                //g.done=1;
+                g.title ^= 1;
+                break;
+            case XK_w:
+                //g.circle.center.y -= g.circle.radius*2;
+                //g.direction = 0;
+                if(g.direction == 0)
+                    g.circle.center.y -= g.circle.radius*2;
+                if(g.direction == 1)
+                    g.circle.center.x -= g.circle.radius*2;
+                if(g.direction == 2)
+                    g.circle.center.y += g.circle.radius*2;
+                if(g.direction == 3)
+                    g.circle.center.x += g.circle.radius*2;
+                tower();
+                break;
+            case XK_a:
+                //g.circle.center.x -= g.circle.radius*2;
+                //g.direction = 1;
+                g.direction = (g.direction+1)%4;
+                tower();
+                break;
+            case XK_s:
+                //g.circle.center.y += g.circle.radius*2;
+                //g.direction = 2;
+                g.direction = (g.direction+2)%4;
+                tower();
+                break;
+            case XK_d:
+                //g.circle.center.x += g.circle.radius*2;
+                //g.direction = 3;
+                g.direction = (g.direction+3)%4;
+                tower();
+                break;
+
+            case XK_f:
+                g.flashlight ^= 1;
+                break;
+
+            case XK_1:
+                if(g.combine == 0)
+                    g.inventory = 1;
+                else if(g.combine == 1 && g.resource.resourceA > 0 && g.resource.resourceB > 0)
                 {
-                    Tower *t = new Tower;
-
-                    if(g.direction == 0)
-                    {
-                        t->pos.x = g.circle.center.x;
-                        t->pos.y = g.circle.center.y - g.circle.radius*2;
-                    }
-                    if(g.direction == 1)
-                    {
-                        t->pos.x = g.circle.center.x - g.circle.radius*2;
-                        t->pos.y = g.circle.center.y;
-                    }
-                    if(g.direction == 2)
-                    {
-                        t->pos.x = g.circle.center.x;
-                        t->pos.y = g.circle.center.y + g.circle.radius*2;
-                    }
-                    if(g.direction == 3)
-                    {
-                        t->pos.x = g.circle.center.x + g.circle.radius*2;
-                        t->pos.y = g.circle.center.y;
-                    }
-                    t->ammo = 5;
-
-                    t->next = g.thead;
-                    if(g.thead != NULL)
-                        g.thead->prev = t;
-                    g.thead = t;
-                    g.totalTowers++;
-                    g.resource.towers--;
+                    g.resource.resourceA--;
+                    g.resource.resourceB--;
+                    g.resource.bullets += 3;
                 }
-            }
+                break;
 
-            break;
+            case XK_2:
+                if(g.combine == 0)
+                    g.inventory = 2;
+                else if(g.combine == 1 && g.resource.resourceA > 0 && g.resource.resourceC > 0)
+                {
+                    g.resource.resourceA--;
+                    g.resource.resourceC--;
+                    g.resource.grenades++;;
+                }
+                break;
 
-        case XK_c:
-            g.combine ^= 1;
-            break;
+            case XK_3:
+                if(g.combine == 0)
+                    g.inventory = 3;
+                else if(g.combine == 1 && g.resource.resourceB > 0 && g.resource.resourceC > 0)
+                {
+                    g.resource.resourceB--;
+                    g.resource.resourceC--;
+                    g.resource.towers++;;
+                }
+                break;
 
-            // DEBUG ///////////////////////////////////////////////
-        case XK_r:
-            g.resource.resourceA = 5;
-            g.resource.resourceB = 5;
-            g.resource.resourceC = 5;
-            g.resource.bullets = 5;
-            g.resource.grenades = 5;
-            g.resource.towers = 5;
-            break;
-            // DEBUG ///////////////////////////////////////////////
+            case XK_space:
+                if(g.inventory == 1)
+                {
+                    if(g.resource.bullets > 0)
+                    {
+                        if(g.direction == 0)
+                            shootBullet(g.circle.center.x, g.circle.center.y, 
+                                    0, -g.circle.radius);
+                        if(g.direction == 1)
+                            shootBullet(g.circle.center.x, g.circle.center.y,
+                                    -g.circle.radius, 0);
+                        if(g.direction == 2)
+                            shootBullet(g.circle.center.x, g.circle.center.y, 
+                                    0, g.circle.radius);
+                        if(g.direction == 3)
+                            shootBullet(g.circle.center.x, g.circle.center.y, 
+                                    g.circle.radius, 0);
+                        g.resource.bullets--;
+                    }
+                }
+                else if(g.inventory == 2)
+                {
+                    if(g.resource.grenades > 0)
+                    {
+                        Grenade *gr = new Grenade;
 
+                        struct timespec grt;
+                        clock_gettime(CLOCK_REALTIME, &grt);
+                        timeDiff(&g.timer, &grt);
+                        timeCopy(&g.timer, &grt);
+                        timeCopy(&gr->time, &grt);
+
+                        gr->pos.x = g.circle.center.x;
+                        gr->pos.y = g.circle.center.y;
+                        if(g.direction == 0)
+                        {
+                            gr->vel.x = 0;
+                            gr->vel.y = -g.circle.radius/4;
+                        }
+                        if(g.direction == 1)
+                        {
+                            gr->vel.x = -g.circle.radius/4;
+                            gr->vel.y = 0;
+                        }
+                        if(g.direction == 2)
+                        {
+                            gr->vel.x = 0;
+                            gr->vel.y = g.circle.radius/4;
+                        }
+                        if(g.direction == 3)
+                        {
+                            gr->vel.x = g.circle.radius/4;
+                            gr->vel.y = 0;
+                        }
+
+                        gr->next = g.ghead;
+                        if(g.ghead != NULL)
+                            g.ghead->prev = gr;
+                        g.ghead = gr;
+                        g.resource.grenades--;
+                    }
+                }
+                else if(g.inventory == 3)
+                {
+                    if(g.resource.towers > 0)
+                    {
+                        Tower *t = new Tower;
+
+                        if(g.direction == 0)
+                        {
+                            t->pos.x = g.circle.center.x;
+                            t->pos.y = g.circle.center.y - g.circle.radius*2;
+                        }
+                        if(g.direction == 1)
+                        {
+                            t->pos.x = g.circle.center.x - g.circle.radius*2;
+                            t->pos.y = g.circle.center.y;
+                        }
+                        if(g.direction == 2)
+                        {
+                            t->pos.x = g.circle.center.x;
+                            t->pos.y = g.circle.center.y + g.circle.radius*2;
+                        }
+                        if(g.direction == 3)
+                        {
+                            t->pos.x = g.circle.center.x + g.circle.radius*2;
+                            t->pos.y = g.circle.center.y;
+                        }
+                        t->ammo = 5;
+
+                        t->next = g.thead;
+                        if(g.thead != NULL)
+                            g.thead->prev = t;
+                        g.thead = t;
+                        g.totalTowers++;
+                        g.resource.towers--;
+                    }
+                }
+
+                break;
+
+            case XK_c:
+                g.combine ^= 1;
+                break;
+
+                // DEBUG ///////////////////////////////////////////////
+            case XK_r:
+                g.resource.resourceA = 5;
+                g.resource.resourceB = 5;
+                g.resource.resourceC = 5;
+                g.resource.bullets = 5;
+                g.resource.grenades = 5;
+                g.resource.towers = 5;
+                break;
+
+            case XK_g:
+                g.drawGrid ^= 1;
+                break;
+                // DEBUG ///////////////////////////////////////////////
+        }
     }
     clearScreen();
 }
@@ -847,159 +911,220 @@ void showMenu(int x, int y)
     setColor3i(0,255,255);
     sprintf(ts, "(DEBUG) (R) Reset resources");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 16;
+    (g.drawGrid==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(DEBUG) (G) Show Grid");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 }
+
+void showTitle(int x, int y)
+{
+    char ts[64];
+
+    setColor3i(255, 255, 255);
+    sprintf(ts,"Insert Title Here");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
+    sprintf(ts, "%s Start Game", (g.menu==0)?"-->":"   ");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 16;
+    sprintf(ts, "%s Exit Game", (g.menu==1)?"-->":"   ");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+}
+
+
 
 void render(void)
 {
-    showMenu(4, 16);
-
-    setColor3i(255,255,255);
-    XDrawArc(dpy, backBuffer, gc, g.circle.center.x-g.circle.radius, g.circle.center.y-g.circle.radius, 
-            g.circle.radius*2, g.circle.radius*2, 0, 360*64);
-    XFillArc(dpy, backBuffer, gc, g.circle.center.x-g.circle.radius, g.circle.center.y-g.circle.radius, 
-            g.circle.radius*2, g.circle.radius*2, 0, 360*64);
-
-    //setColor3i(255,0,0);
-    //XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-    //        g.aim.x, g.aim.y);
-
-    if(g.direction == 0)
+    if(g.title)
     {
-        for(float i = g.angle; i < g.angle*2; i += 0.005)
-        {
-            if(g.flashlight)
-            {
-                setColor3i(255,255,0);
-                g.point1.x = g.circle.center.x - (cos(i)*g.dist);
-                g.point1.y = g.circle.center.y - (sin(i)*g.dist);
-                g.point2.x = g.circle.center.x + (cos(i)*g.dist);
-                g.point2.y = g.circle.center.y - (sin(i)*g.dist);
-            }
-            else
-            {
-                setColor3i(150,150,150);
-                g.point1.x = g.circle.center.x - (cos(i)*g.dist/2);
-                g.point1.y = g.circle.center.y - (sin(i)*g.dist/2);
-                g.point2.x = g.circle.center.x + (cos(i)*g.dist/2);
-                g.point2.y = g.circle.center.y - (sin(i)*g.dist/2);
-            }
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point1.x, g.point1.y);
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point2.x, g.point2.y);
-        }
+        showTitle(4, 16);
     }
-    if(g.direction == 1)
+    else if(!g.title)
     {
-        for(float i = 0.0; i < g.angle; i += 0.005)
+        if(g.drawGrid)
         {
-            if(g.flashlight)
+            setColor3i(255,255,255);
+            for(size_t i = 0; i < sizeof(g.grid.column)/4; i++)
             {
-                setColor3i(255,255,0);
-                g.point1.x = g.circle.center.x - (cos(i)*g.dist);
-                g.point1.y = g.circle.center.y + (sin(i)*g.dist);
-                g.point2.x = g.circle.center.x - (cos(i)*g.dist);
-                g.point2.y = g.circle.center.y - (sin(i)*g.dist);
+                XDrawLine(dpy, backBuffer, gc, g.grid.column[i], 0, g.grid.column[i], g.yres);
             }
-            else
+            for(size_t i = 0; i < sizeof(g.grid.row)/4; i++)
             {
-                setColor3i(150,150,150);
-                g.point1.x = g.circle.center.x - (cos(i)*g.dist/2);
-                g.point1.y = g.circle.center.y + (sin(i)*g.dist/2);
-                g.point2.x = g.circle.center.x - (cos(i)*g.dist/2);
-                g.point2.y = g.circle.center.y - (sin(i)*g.dist/2);
+                XDrawLine(dpy, backBuffer, gc, 0, g.grid.row[i], g.xres, g.grid.row[i]);
             }
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point1.x, g.point1.y);
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point2.x, g.point2.y);
         }
-    }
-    if(g.direction == 2)
-    {
-        for(float i = g.angle; i < g.angle*2; i += 0.005)
-        {
-            if(g.flashlight)
-            {
-                setColor3i(255,255,0);
-                g.point1.x = g.circle.center.x + (cos(i)*g.dist);
-                g.point1.y = g.circle.center.y + (sin(i)*g.dist);
-                g.point2.x = g.circle.center.x - (cos(i)*g.dist);
-                g.point2.y = g.circle.center.y + (sin(i)*g.dist);
-            }
-            else
-            {
-                setColor3i(150,150,150);
-                g.point1.x = g.circle.center.x + (cos(i)*g.dist/2);
-                g.point1.y = g.circle.center.y + (sin(i)*g.dist/2);
-                g.point2.x = g.circle.center.x - (cos(i)*g.dist/2);
-                g.point2.y = g.circle.center.y + (sin(i)*g.dist/2);
-            }
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point1.x, g.point1.y);
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point2.x, g.point2.y);
-        }
-    }
-    if(g.direction == 3)
-    {
-        for(float i = 0; i < g.angle; i += 0.005)
-        {
-            if(g.flashlight)
-            {
-                setColor3i(255,255,0);
-                g.point1.x = g.circle.center.x + (cos(i)*g.dist);
-                g.point1.y = g.circle.center.y - (sin(i)*g.dist);
-                g.point2.x = g.circle.center.x + (cos(i)*g.dist);
-                g.point2.y = g.circle.center.y + (sin(i)*g.dist);
-            }
-            else
-            {
-                setColor3i(150,150,150);
-                g.point1.x = g.circle.center.x + (cos(i)*g.dist/2);
-                g.point1.y = g.circle.center.y - (sin(i)*g.dist/2);
-                g.point2.x = g.circle.center.x + (cos(i)*g.dist/2);
-                g.point2.y = g.circle.center.y + (sin(i)*g.dist/2);
-            }
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point1.x, g.point1.y);
-            XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
-                    g.point2.x, g.point2.y);
-        }
-    }
+        showMenu(4, 16);
 
-    Bullet *b = g.bhead;
-    while(b)
-    {
         setColor3i(255,255,255);
-        XDrawRectangle(dpy, backBuffer, gc, b->pos.x-g.circle.radius/4, b->pos.y-g.circle.radius/4, 
-                g.circle.radius/2, g.circle.radius/2);
-        XFillRectangle(dpy, backBuffer, gc, b->pos.x-g.circle.radius/4, b->pos.y-g.circle.radius/4, 
-                g.circle.radius/2, g.circle.radius/2);
-        b = b->next;
-    }
-
-    Grenade *gr = g.ghead;
-    while(gr)
-    {
-        setColor3i(0,255,255);
-        XDrawRectangle(dpy, backBuffer, gc, gr->pos.x-g.circle.radius/4, gr->pos.y-g.circle.radius/4, 
-                g.circle.radius/2, g.circle.radius/2);
-        XFillRectangle(dpy, backBuffer, gc, gr->pos.x-g.circle.radius/4, gr->pos.y-g.circle.radius/4, 
-                g.circle.radius/2, g.circle.radius/2);
-        gr = gr->next;
-    }
-
-    Tower *t = g.thead;
-    while(t)
-    {
-        setColor3i(0, 0, 255);
-
-        XDrawArc(dpy, backBuffer, gc, t->pos.x-g.circle.radius, t->pos.y-g.circle.radius, 
+        XDrawArc(dpy, backBuffer, gc, g.circle.center.x-g.circle.radius, g.circle.center.y-g.circle.radius, 
                 g.circle.radius*2, g.circle.radius*2, 0, 360*64);
-        XFillArc(dpy, backBuffer, gc, t->pos.x-g.circle.radius, t->pos.y-g.circle.radius, 
+        XFillArc(dpy, backBuffer, gc, g.circle.center.x-g.circle.radius, g.circle.center.y-g.circle.radius, 
                 g.circle.radius*2, g.circle.radius*2, 0, 360*64);
-        t = t->next;
+
+        //setColor3i(255,0,0);
+        //XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+        //        g.aim.x, g.aim.y);
+
+        if(g.direction == 0)
+        {
+            for(float i = g.angle; i < g.angle*2; i += 0.005)
+            {
+                if(g.flashlight)
+                {
+                    setColor3i(255,255,0);
+                    g.point1.x = g.circle.center.x - (cos(i)*g.dist);
+                    g.point1.y = g.circle.center.y - (sin(i)*g.dist);
+                    g.point2.x = g.circle.center.x + (cos(i)*g.dist);
+                    g.point2.y = g.circle.center.y - (sin(i)*g.dist);
+                }
+                else
+                {
+                    setColor3i(150,150,150);
+                    g.point1.x = g.circle.center.x - (cos(i)*g.dist/2);
+                    g.point1.y = g.circle.center.y - (sin(i)*g.dist/2);
+                    g.point2.x = g.circle.center.x + (cos(i)*g.dist/2);
+                    g.point2.y = g.circle.center.y - (sin(i)*g.dist/2);
+                }
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point1.x, g.point1.y);
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point2.x, g.point2.y);
+            }
+        }
+        if(g.direction == 1)
+        {
+            for(float i = 0.0; i < g.angle; i += 0.005)
+            {
+                if(g.flashlight)
+                {
+                    setColor3i(255,255,0);
+                    g.point1.x = g.circle.center.x - (cos(i)*g.dist);
+                    g.point1.y = g.circle.center.y + (sin(i)*g.dist);
+                    g.point2.x = g.circle.center.x - (cos(i)*g.dist);
+                    g.point2.y = g.circle.center.y - (sin(i)*g.dist);
+                }
+                else
+                {
+                    setColor3i(150,150,150);
+                    g.point1.x = g.circle.center.x - (cos(i)*g.dist/2);
+                    g.point1.y = g.circle.center.y + (sin(i)*g.dist/2);
+                    g.point2.x = g.circle.center.x - (cos(i)*g.dist/2);
+                    g.point2.y = g.circle.center.y - (sin(i)*g.dist/2);
+                }
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point1.x, g.point1.y);
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point2.x, g.point2.y);
+            }
+        }
+        if(g.direction == 2)
+        {
+            for(float i = g.angle; i < g.angle*2; i += 0.005)
+            {
+                if(g.flashlight)
+                {
+                    setColor3i(255,255,0);
+                    g.point1.x = g.circle.center.x + (cos(i)*g.dist);
+                    g.point1.y = g.circle.center.y + (sin(i)*g.dist);
+                    g.point2.x = g.circle.center.x - (cos(i)*g.dist);
+                    g.point2.y = g.circle.center.y + (sin(i)*g.dist);
+                }
+                else
+                {
+                    setColor3i(150,150,150);
+                    g.point1.x = g.circle.center.x + (cos(i)*g.dist/2);
+                    g.point1.y = g.circle.center.y + (sin(i)*g.dist/2);
+                    g.point2.x = g.circle.center.x - (cos(i)*g.dist/2);
+                    g.point2.y = g.circle.center.y + (sin(i)*g.dist/2);
+                }
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point1.x, g.point1.y);
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point2.x, g.point2.y);
+            }
+        }
+        if(g.direction == 3)
+        {
+            for(float i = 0; i < g.angle; i += 0.005)
+            {
+                if(g.flashlight)
+                {
+                    setColor3i(255,255,0);
+                    g.point1.x = g.circle.center.x + (cos(i)*g.dist);
+                    g.point1.y = g.circle.center.y - (sin(i)*g.dist);
+                    g.point2.x = g.circle.center.x + (cos(i)*g.dist);
+                    g.point2.y = g.circle.center.y + (sin(i)*g.dist);
+                }
+                else
+                {
+                    setColor3i(150,150,150);
+                    g.point1.x = g.circle.center.x + (cos(i)*g.dist/2);
+                    g.point1.y = g.circle.center.y - (sin(i)*g.dist/2);
+                    g.point2.x = g.circle.center.x + (cos(i)*g.dist/2);
+                    g.point2.y = g.circle.center.y + (sin(i)*g.dist/2);
+                }
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point1.x, g.point1.y);
+                XDrawLine(dpy, backBuffer, gc, g.circle.center.x, g.circle.center.y,
+                        g.point2.x, g.point2.y);
+            }
+        }
+
+        Bullet *b = g.bhead;
+        while(b)
+        {
+            setColor3i(255,255,255);
+            XDrawRectangle(dpy, backBuffer, gc, b->pos.x-g.circle.radius/4, b->pos.y-g.circle.radius/4, 
+                    g.circle.radius/2, g.circle.radius/2);
+            XFillRectangle(dpy, backBuffer, gc, b->pos.x-g.circle.radius/4, b->pos.y-g.circle.radius/4, 
+                    g.circle.radius/2, g.circle.radius/2);
+            b = b->next;
+        }
+
+        Grenade *gr = g.ghead;
+        while(gr)
+        {
+            setColor3i(0,255,255);
+            XDrawRectangle(dpy, backBuffer, gc, gr->pos.x-g.circle.radius/4, gr->pos.y-g.circle.radius/4, 
+                    g.circle.radius/2, g.circle.radius/2);
+            XFillRectangle(dpy, backBuffer, gc, gr->pos.x-g.circle.radius/4, gr->pos.y-g.circle.radius/4, 
+                    g.circle.radius/2, g.circle.radius/2);
+            gr = gr->next;
+        }
+
+        Tower *t = g.thead;
+        while(t)
+        {
+            setColor3i(0, 0, 255);
+
+            XDrawArc(dpy, backBuffer, gc, t->pos.x-g.circle.radius, t->pos.y-g.circle.radius, 
+                    g.circle.radius*2, g.circle.radius*2, 0, 360*64);
+            XFillArc(dpy, backBuffer, gc, t->pos.x-g.circle.radius, t->pos.y-g.circle.radius, 
+                    g.circle.radius*2, g.circle.radius*2, 0, 360*64);
+            t = t->next;
+        }
     }
 }
 
+void initGrid()
+{
+    g.grid.size = g.circle.radius * 2;
+    int position = 0;
+    for(int i = 0; i < g.xres; i += g.grid.size)
+    {
+        g.grid.column[position] = i;
+        position++;
+    }
+    position = 0;
+    for(int i = 0; i < g.yres; i += g.grid.size)
+    {
+        g.grid.row[position] = i;
+        position++;
+    }
+    //g.circle.center.x = g.xres/g.grid.size;
+    //g.circle.center.y = g.yres/g.grid.size;
+}
