@@ -1,7 +1,5 @@
 //Jason Thai
 
-// make it so reaching destination will complete map
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +27,7 @@ extern "C"
 
 #include <unistd.h>
 
+#include "maps.h"
 using namespace std;
 #define GRAVITY -9.8
 
@@ -150,41 +149,6 @@ struct Grid
     int size;
     int column[100];
     int row[100];
-
-    int start[2];
-    int destination[2];
-};
-
-struct Options
-{
-    int menu;
-    bool help;
-    Options()
-    {
-        menu = 0;
-        help = 1;
-    }
-};
-
-struct Resolution
-{
-    int menu;
-    int selection;
-    Resolution()
-    {
-        menu = 0;
-        selection = 0;
-    }
-};
-
-struct Maps
-{
-    int menu;
-    int area[10][4];
-    int location;
-    Grid grid[10];
-    int start;
-    int destination;
 };
 
 #define MAX_POINTS 400
@@ -225,18 +189,6 @@ struct Global {
     Grid grid;
     bool drawGrid;
 
-    Options options;
-    bool showUI;
-    bool showOptions;
-    Resolution resolution;
-    bool showRes;
-
-    Maps maps;
-    bool showMaps;
-
-    bool showComplete;
-    int cmenu;
-
     Global() {
         //constructor
         xres = 640;
@@ -270,15 +222,6 @@ struct Global {
         menu = 0;
 
         drawGrid = false;
-
-        showUI = 0;
-        showOptions = 0;
-        showRes = 0;
-
-        showMaps = 0;
-
-        showComplete = 0;
-        cmenu = 0;
     }
 } g;
 
@@ -297,9 +240,6 @@ void clearScreen();
 void tower();
 
 void initGrid();
-
-void clearMap();
-void initMap1();
 
 int main()
 {
@@ -465,7 +405,7 @@ void checkKeys(XEvent *e)
     //A key was pressed
     int key = XLookupKeysym(&e->xkey, 0);
 
-    if(g.title && !g.showOptions && !g.showRes && !g.showMaps) // title
+    if(g.title)
     {
         switch(key)
         {
@@ -473,262 +413,43 @@ void checkKeys(XEvent *e)
                 g.done = 1;
                 break;
             case XK_w:
-                if(g.menu-1 < 0)
-                {
-                    g.menu = 3;
-                }
-                g.menu = (g.menu-1)%3;
+                g.menu = (g.menu+1)%2;
                 break;
             case XK_s:
-                g.menu = (g.menu+1)%3;
+                g.menu = (g.menu+1)%2;
                 break;
             case XK_space:
                 if(g.menu == 0)
                 {
                     g.title ^= 1;
-                    g.showMaps ^= 1;
-                    g.maps.menu = 0;
                 }
                 else if(g.menu == 1)
-                {
-                    g.title ^= 1;
-                    g.showOptions ^= 1;
-                    g.options.menu = 0;
-                }
-                else if(g.menu == 2)
                 {
                     g.done = 1;
                 }
                 break;
         }
     }
-    else if(!g.title && g.showOptions && !g.showRes && !g.showMaps) // options
-    {
-        switch(key)
-        {
-            case XK_Escape:
-                g.title ^= 1;
-                g.showOptions ^= 1;
-                g.menu = 0;
-                break;
-            case XK_w:
-                if(g.options.menu-1 < 0)
-                {
-                    g.options.menu = 3;
-                }
-                g.options.menu = (g.options.menu-1)%3;
-                break;
-            case XK_s:
-                g.options.menu = (g.options.menu+1)%3;
-                break;
-            case XK_space:
-                if(g.options.menu == 0)
-                {
-                    g.options.help ^= 1;
-                }
-                else if(g.options.menu == 1)
-                {
-                    g.showOptions ^= 1;
-                    g.showRes ^= 1;
-                    g.resolution.menu = 0;
-                }
-                else if(g.options.menu == 2)
-                {
-                    g.title ^= 1;
-                    g.showOptions ^= 1;
-                    g.menu = 0;
-                }
-                break;
-        }
-    }
-    else if(!g.title && !g.showOptions && g.showRes && !g.showMaps) // resolution
-    {
-        switch(key)
-        {
-            case XK_Escape:
-                g.showRes ^= 1;
-                g.showOptions ^= 1;
-                g.options.menu = 0;
-                break;
-            case XK_w:
-                if(g.resolution.menu-1 < 0)
-                {
-                    g.resolution.menu = 4;
-                }
-                g.resolution.menu = (g.resolution.menu-1)%4;
-                break;
-            case XK_s:
-                g.resolution.menu = (g.resolution.menu+1)%4;
-                break;
-            case XK_space:
-
-                if(g.resolution.menu == 0)
-                {
-                    g.xres = 640;
-                    g.yres = 480;
-                    g.resolution.selection = 0;
-                    g.circle.radius = 20.0;
-                    cleanupXwindows();
-                    initXwindows();
-                }
-                else if(g.resolution.menu == 1)
-                {
-                    g.xres = 840;
-                    g.yres = 640;
-                    g.resolution.selection = 1;
-                    g.circle.radius = 40.0;
-                    cleanupXwindows();
-                    initXwindows();
-
-                }
-                else if(g.resolution.menu == 2)
-                {
-                    g.xres = 1080;
-                    g.yres = 840;
-                    g.resolution.selection = 2;
-                    g.circle.radius = 40.0;
-                    cleanupXwindows();
-                    initXwindows();
-                }
-                else if(g.resolution.menu == 3)
-                {
-                    g.showRes ^= 1;
-                    g.showOptions ^= 1;
-                    g.options.menu = 0;
-                }
-                break;
-        }
-    }
-    else if(!g.title && !g.showOptions && !g.showRes && g.showMaps) // maps
-    {
-        switch(key)
-        {
-            case XK_Escape:
-                g.showMaps ^= 1;
-                g.title ^= 1;
-                g.menu = 0;
-                break;
-            case XK_w:
-                if(g.maps.menu-1 < 0)
-                {
-                    g.maps.menu = 2;
-                }
-                g.maps.menu = (g.maps.menu-1)%2;
-                break;
-            case XK_s:
-                g.maps.menu = (g.maps.menu+1)%2;
-                break;
-            case XK_space:
-                if(g.maps.menu == 0)
-                {
-                    initMap1();
-                    g.showMaps ^= 1;
-                }
-                else if(g.maps.menu == 1)
-                {
-                    g.showMaps ^= 1;
-                    g.title ^= 1;
-                    g.menu = 0;
-                }
-                break;
-        }
-    }
-    else if(!g.title && !g.showOptions && !g.showRes && !g.showMaps && g.showComplete) // completed map
-    {
-        switch(key)
-        {
-            case XK_Escape:
-                g.showComplete ^= 1;
-                g.title ^= 1;
-                g.menu = 0;
-                break;
-            case XK_w:
-                if(g.cmenu-1 < 0)
-                {
-                    g.cmenu = 3;
-                }
-                g.cmenu = (g.cmenu-1)%3;
-                break;
-            case XK_s:
-                g.cmenu = (g.cmenu+1)%3;
-                break;
-            case XK_space:
-                if(g.cmenu == 0)
-                {
-                    initMap1();
-                    g.showComplete ^= 1;
-                }
-                else if(g.cmenu == 1)
-                {
-                    g.showComplete ^= 1;
-                    g.showMaps ^= 1;
-                    g.maps.menu = 0;
-                }
-                else if(g.cmenu == 2)
-                {
-                    g.showComplete ^= 1;
-                    g.title ^= 1;
-                    g.menu = 0;
-                }
-                break;
-        }
-    }
-
-
-    else if(!g.title && !g.showOptions && !g.showRes && !g.showMaps) // game
+    else if(!g.title)
     {
         switch (key) {
             case XK_Escape:
                 //quitting the program
                 //g.done=1;
                 g.title ^= 1;
-                g.menu = 0;
                 break;
             case XK_w:
                 //g.circle.center.y -= g.circle.radius*2;
                 //g.direction = 0;
-                if(g.direction == 0 && (g.circle.center.y - g.circle.radius*2) < 0 && g.maps.area[g.maps.location][0] > -1)
-                {
-                    g.circle.center.y = g.yres-g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][0];
-                }
-                else if(g.direction == 0 && (g.circle.center.y - g.circle.radius*2) > 0)
+                if(g.direction == 0)
                     g.circle.center.y -= g.circle.radius*2;
-
-                if(g.direction == 1 && (g.circle.center.x - g.circle.radius*2) < 0 && g.maps.area[g.maps.location][1] > -1)
-                {
-                    g.circle.center.x = g.xres-g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][1];
-                }
-                else if(g.direction == 1 && (g.circle.center.x - g.circle.radius*2) > 0)
+                if(g.direction == 1)
                     g.circle.center.x -= g.circle.radius*2;
-                
-                if(g.direction == 2 && (g.circle.center.y + g.circle.radius*2) > g.yres && g.maps.area[g.maps.location][2] > -1)
-                {
-                    g.circle.center.y = g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][2];
-                }
-                else if(g.direction == 2 && (g.circle.center.y + g.circle.radius*2) < g.yres)
+                if(g.direction == 2)
                     g.circle.center.y += g.circle.radius*2;
-
-                if(g.direction == 3 && (g.circle.center.x + g.circle.radius*2) > g.xres && g.maps.area[g.maps.location][3] > -1)
-                {
-                    g.circle.center.x = g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][3];
-                }
-                else if(g.direction == 3 && (g.circle.center.x + g.circle.radius*2) < g.xres)
+                if(g.direction == 3)
                     g.circle.center.x += g.circle.radius*2;
-               
-                if(g.circle.center.x/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[0] &&
-                        g.circle.center.y/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[1] &&
-                        g.maps.location == g.maps.destination)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
                 tower();
-                // NOTE: location of circle regarding grid is offset by 0.5
-                //cout << g.circle.center.x/g.grid.size << endl << g.circle.center.y/g.grid.size << endl << endl;
                 break;
             case XK_a:
                 //g.circle.center.x -= g.circle.radius*2;
@@ -889,10 +610,6 @@ void checkKeys(XEvent *e)
 
             case XK_c:
                 g.combine ^= 1;
-                break;
-
-            case XK_u:
-                g.showUI ^= 1;
                 break;
 
                 // DEBUG ///////////////////////////////////////////////
@@ -1113,112 +830,95 @@ void showMenu(int x, int y)
 {
     char ts[64];
 
-    (g.showUI==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "(U) UI: %s", (g.showUI==1)?"ON":"OFF");
+    setColor3i(255, 100, 100);
+    sprintf(ts,"Health: ");
+    for(int i = 0; i < 5; i++)
+    {
+        strcat(ts, "I ");
+    }
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
-    if(g.showUI)
+    y += 32;
+    (g.flashlight==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(F) Flashlight: %s", (g.flashlight==1)?"ON":"OFF");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    if(g.combine == 0)
     {
         y += 32;
-        setColor3i(255, 100, 100);
-        sprintf(ts,"Health: ");
-        for(int i = 0; i < 5; i++)
-        {
-            strcat(ts, "I ");
-        }
+        (g.inventory==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "(1) Gun: %s", (g.inventory==1)?"ON":"OFF");
         XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
-        if(g.options.help)
-        {
-            y += 32;
-            (g.flashlight==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "(F) Flashlight: %s", (g.flashlight==1)?"ON":"OFF");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        }
-        if(g.combine == 0)
-        {
-            y += 32;
-            (g.inventory==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "(1) Gun: %s", (g.inventory==1)?"ON":"OFF");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-            y += 16;
-            (g.inventory==2) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "(2) Grenade: %s", (g.inventory==2)?"ON":"OFF");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-            y += 16;
-            (g.inventory==3) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "(3) Tower: %s", (g.inventory==3)?"ON":"OFF");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        }
-        else if(g.combine == 1)
-        {
-            y += 32;
-            (g.resource.resourceA > 0 && g.resource.resourceB > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "1 ResourceA + 1 ResourceB = 3 bullets");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-            y += 16;
-            (g.resource.resourceA > 0 && g.resource.resourceC > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "1 ResourceA + 1 ResourceC = 1 grenade");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-            y += 16;
-            (g.resource.resourceB > 0 && g.resource.resourceC > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "1 ResourceB + 1 ResourceC = 1 tower");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        }
-
-        if(g.options.help)
-        {
-            y += 32;
-            setColor3i(255,255,255);
-            sprintf(ts, "(Space) Shoot");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        }
-
-        y += 32;
-        setColor3i(255,255,255);
-        sprintf(ts, "Resource A: %i", g.resource.resourceA);
-        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
         y += 16;
-        setColor3i(255,255,255);
-        sprintf(ts, "Resource B: %i", g.resource.resourceB);
-        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        y += 16;
-        setColor3i(255,255,255);
-        sprintf(ts, "Resource C: %i", g.resource.resourceC);
-        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        y += 32;
-        setColor3i(255,255,255);
-        sprintf(ts, "Bullets: %i", g.resource.bullets);
-        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        y += 16;
-        setColor3i(255,255,255);
-        sprintf(ts, "Grenades: %i", g.resource.grenades);
-        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        y += 16;
-        setColor3i(255,255,255);
-        sprintf(ts, "Towers: %i", g.resource.towers);
+        (g.inventory==2) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "(2) Grenade: %s", (g.inventory==2)?"ON":"OFF");
         XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
-        if(g.options.help)
-        {
-            y += 32;
-            (g.combine==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "(C) Combine: %s", (g.combine==1)?"ON":"OFF");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-            y += 32;
-            setColor3i(0,255,255);
-            sprintf(ts, "(DEBUG) (R) Reset resources");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-            y += 16;
-            (g.drawGrid==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-            sprintf(ts, "(DEBUG) (G) Show Grid");
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        }
+        y += 16;
+        (g.inventory==3) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "(3) Tower: %s", (g.inventory==3)?"ON":"OFF");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
     }
+    else if(g.combine == 1)
+    {
+        y += 32;
+        (g.resource.resourceA > 0 && g.resource.resourceB > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "1 ResourceA + 1 ResourceB = 3 bullets");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+        y += 16;
+        (g.resource.resourceA > 0 && g.resource.resourceC > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "1 ResourceA + 1 ResourceC = 1 grenade");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+        y += 16;
+        (g.resource.resourceB > 0 && g.resource.resourceC > 0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+        sprintf(ts, "1 ResourceB + 1 ResourceC = 1 tower");
+        XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    }
+    y += 32;
+    setColor3i(255,255,255);
+    sprintf(ts, "(Space) Shoot");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
+    setColor3i(255,255,255);
+    sprintf(ts, "Resource A: %i", g.resource.resourceA);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Resource B: %i", g.resource.resourceB);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Resource C: %i", g.resource.resourceC);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 32;
+    setColor3i(255,255,255);
+    sprintf(ts, "Bullets: %i", g.resource.bullets);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Grenades: %i", g.resource.grenades);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+    y += 16;
+    setColor3i(255,255,255);
+    sprintf(ts, "Towers: %i", g.resource.towers);
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
+    (g.combine==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(C) Combine: %s", (g.combine==1)?"ON":"OFF");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 32;
+    setColor3i(0,255,255);
+    sprintf(ts, "(DEBUG) (R) Reset resources");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
+
+    y += 16;
+    (g.drawGrid==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
+    sprintf(ts, "(DEBUG) (G) Show Grid");
+    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 }
 
 void showTitle(int x, int y)
@@ -1234,103 +934,11 @@ void showTitle(int x, int y)
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
     y += 16;
-    sprintf(ts, "%s Options", (g.menu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    sprintf(ts, "%s Exit Game", (g.menu==2)?"-->":"   ");
+    sprintf(ts, "%s Exit Game", (g.menu==1)?"-->":"   ");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 }
 
-void showOption(int x, int y)
-{
-    char ts[64];
 
-    setColor3i(255, 255, 255);
-    sprintf(ts,"Options");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    (g.options.help==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "%s Set Help: %s", (g.options.menu==0)?"-->":"   ", (g.options.help==1)?"ON":"OFF");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    setColor3i(255, 255, 255);
-    y += 16;
-    sprintf(ts, "%s Set Resolution", (g.options.menu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Return", (g.options.menu==2)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-}
-
-void showRes(int x, int y)
-{
-    char ts[64];
-
-    setColor3i(255,255,255);
-    sprintf(ts, "Resolutions");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    (g.resolution.selection==0) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "%s 640 x 480: %s", (g.resolution.menu==0)?"-->":"   ", (g.resolution.selection==0)?"ON":"OFF");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    (g.resolution.selection==1) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "%s 840 x 640: %s", (g.resolution.menu==1)?"-->":"   ", (g.resolution.selection==1)?"ON":"OFF");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    (g.resolution.selection==2) ? setColor3i(0,255,0) : setColor3i(255,0,0);
-    sprintf(ts, "%s 1080 x 840: %s", (g.resolution.menu==2)?"-->":"   ", (g.resolution.selection==2)?"ON":"OFF");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    setColor3i(255,255,255);
-    y += 32;
-    sprintf(ts, "%s Return", (g.resolution.menu==3)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-}
-
-void showMaps(int x, int y)
-{
-    char ts[64];
-
-    setColor3i(255,255,255);
-    sprintf(ts, "Maps");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Map1", (g.maps.menu==0)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Return", (g.maps.menu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-}
-
-void showComplete(int x, int y)
-{
-    char ts[64];
-
-    setColor3i(255,255,255);
-    sprintf(ts, "Map completed");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Retry", (g.cmenu==0)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    sprintf(ts, "%s Select Map", (g.cmenu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-    
-    y += 16;
-    sprintf(ts, "%s Quit", (g.cmenu==2)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-}
 
 void render(void)
 {
@@ -1338,23 +946,7 @@ void render(void)
     {
         showTitle(4, 16);
     }
-    else if(!g.title && g.showOptions)
-    {
-        showOption(4, 16);
-    }
-    else if(g.showRes)
-    {
-        showRes(4, 16);
-    }
-    else if(g.showMaps)
-    {
-        showMaps(4, 16);
-    }
-    else if(g.showComplete)
-    {
-        showComplete(4, 16);
-    }
-    else if(!g.title && !g.showOptions)
+    else if(!g.title)
     {
         if(g.drawGrid)
         {
@@ -1369,21 +961,6 @@ void render(void)
             }
         }
         showMenu(4, 16);
-
-        if(g.maps.location == g.maps.start)
-        {
-            setColor3i(100,255,255);
-            XFillRectangle(dpy, backBuffer, gc, g.maps.grid[g.maps.start].start[0]*g.grid.size, 
-                    g.maps.grid[g.maps.start].start[1]*g.grid.size,
-                    2*g.circle.radius, 2*g.circle.radius);
-        }
-        if(g.maps.location == g.maps.destination)
-        {
-            setColor3i(255,255,100);
-            XFillRectangle(dpy, backBuffer, gc, g.maps.grid[g.maps.destination].destination[0]*g.grid.size, 
-                    g.maps.grid[g.maps.destination].destination[1]*g.grid.size,
-                    2*g.circle.radius, 2*g.circle.radius);
-        }
 
         setColor3i(255,255,255);
         XDrawArc(dpy, backBuffer, gc, g.circle.center.x-g.circle.radius, g.circle.center.y-g.circle.radius, 
@@ -1555,44 +1132,4 @@ void initGrid()
     }
     //g.circle.center.x = g.xres/g.grid.size;
     //g.circle.center.y = g.yres/g.grid.size;
-}
-
-void clearMap()
-{
-    for(int i = 0; i < 10; i++)
-    {
-        for(int j = 0; j < 4; j++)
-        {
-            g.maps.area[i][j] = -1;
-        }
-        g.maps.grid[i].start[0] = -1;
-        g.maps.grid[i].start[1] = -1;
-        g.maps.grid[i].destination[0] = -1;
-        g.maps.grid[i].destination[1] = -1;
-    }
-}
-
-void initMap1()
-{
-    clearMap();
-    g.maps.area[0][3] = 1;
-    g.maps.area[1][1] = 0;
-    g.maps.area[1][0] = 2;
-    g.maps.area[2][2] = 1;
-    g.maps.area[2][3] = 3;
-    g.maps.area[3][1] = 2;
-
-    // start might not be necessary
-    // NOTE: important, how i can set circle's location to grid [5,5]
-    g.maps.grid[0].start[0] = 5;
-    g.maps.grid[0].start[1] = 5;
-    g.circle.center.x = 5*g.grid.size+g.circle.radius;
-    g.circle.center.y = 5*g.grid.size+g.circle.radius;
-    g.direction = 0;
-    g.maps.location = 0;
-    g.maps.start = 0;
-    g.maps.destination = 3;
-    
-    g.maps.grid[3].destination[0] = 10;
-    g.maps.grid[3].destination[1] = 10;
 }

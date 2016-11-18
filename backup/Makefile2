@@ -1,0 +1,15 @@
+all: game project.o maps.o
+
+project.o: project.cpp
+	g++ -c -g -I ./include project.cpp -o project.o -lX11 -lm -lXext -Wall -Wextra ./libggfonts.so -lrt -lGL -pthread
+
+maps.o: maps.cpp
+	g++ -c -o maps.o maps.cpp -Wall
+
+game: project.o maps.o
+	g++ -g -I ./include project.o maps.o -o game -lX11 -lm -lXext -Wall -Wextra ./libggfonts.so -lrt -lGL -pthread
+
+clean:
+	rm -f game
+	rm -f *.o
+

@@ -1,7 +1,5 @@
 //Jason Thai
 
-// make it so reaching destination will complete map
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +27,7 @@ extern "C"
 
 #include <unistd.h>
 
+#include "maps.h"
 using namespace std;
 #define GRAVITY -9.8
 
@@ -150,15 +149,13 @@ struct Grid
     int size;
     int column[100];
     int row[100];
-
-    int start[2];
-    int destination[2];
 };
 
 struct Options
 {
     int menu;
     bool help;
+    int resolution;
     Options()
     {
         menu = 0;
@@ -175,16 +172,6 @@ struct Resolution
         menu = 0;
         selection = 0;
     }
-};
-
-struct Maps
-{
-    int menu;
-    int area[10][4];
-    int location;
-    Grid grid[10];
-    int start;
-    int destination;
 };
 
 #define MAX_POINTS 400
@@ -231,11 +218,7 @@ struct Global {
     Resolution resolution;
     bool showRes;
 
-    Maps maps;
-    bool showMaps;
-
-    bool showComplete;
-    int cmenu;
+    int area;
 
     Global() {
         //constructor
@@ -275,10 +258,7 @@ struct Global {
         showOptions = 0;
         showRes = 0;
 
-        showMaps = 0;
-
-        showComplete = 0;
-        cmenu = 0;
+        area = 0;
     }
 } g;
 
@@ -297,9 +277,6 @@ void clearScreen();
 void tower();
 
 void initGrid();
-
-void clearMap();
-void initMap1();
 
 int main()
 {
@@ -465,7 +442,7 @@ void checkKeys(XEvent *e)
     //A key was pressed
     int key = XLookupKeysym(&e->xkey, 0);
 
-    if(g.title && !g.showOptions && !g.showRes && !g.showMaps) // title
+    if(g.title && !g.showOptions && !g.showRes) // title
     {
         switch(key)
         {
@@ -486,14 +463,11 @@ void checkKeys(XEvent *e)
                 if(g.menu == 0)
                 {
                     g.title ^= 1;
-                    g.showMaps ^= 1;
-                    g.maps.menu = 0;
                 }
                 else if(g.menu == 1)
                 {
                     g.title ^= 1;
                     g.showOptions ^= 1;
-                    g.options.menu = 0;
                 }
                 else if(g.menu == 2)
                 {
@@ -502,14 +476,13 @@ void checkKeys(XEvent *e)
                 break;
         }
     }
-    else if(!g.title && g.showOptions && !g.showRes && !g.showMaps) // options
+    else if(!g.title && g.showOptions && !g.showRes) // options
     {
         switch(key)
         {
             case XK_Escape:
                 g.title ^= 1;
                 g.showOptions ^= 1;
-                g.menu = 0;
                 break;
             case XK_w:
                 if(g.options.menu-1 < 0)
@@ -530,25 +503,22 @@ void checkKeys(XEvent *e)
                 {
                     g.showOptions ^= 1;
                     g.showRes ^= 1;
-                    g.resolution.menu = 0;
                 }
                 else if(g.options.menu == 2)
                 {
                     g.title ^= 1;
                     g.showOptions ^= 1;
-                    g.menu = 0;
                 }
                 break;
         }
     }
-    else if(!g.title && !g.showOptions && g.showRes && !g.showMaps) // resolution
+    else if(!g.title && !g.showOptions && g.showRes) // resolution
     {
         switch(key)
         {
             case XK_Escape:
                 g.showRes ^= 1;
                 g.showOptions ^= 1;
-                g.options.menu = 0;
                 break;
             case XK_w:
                 if(g.resolution.menu-1 < 0)
@@ -594,138 +564,29 @@ void checkKeys(XEvent *e)
                 {
                     g.showRes ^= 1;
                     g.showOptions ^= 1;
-                    g.options.menu = 0;
                 }
                 break;
         }
     }
-    else if(!g.title && !g.showOptions && !g.showRes && g.showMaps) // maps
-    {
-        switch(key)
-        {
-            case XK_Escape:
-                g.showMaps ^= 1;
-                g.title ^= 1;
-                g.menu = 0;
-                break;
-            case XK_w:
-                if(g.maps.menu-1 < 0)
-                {
-                    g.maps.menu = 2;
-                }
-                g.maps.menu = (g.maps.menu-1)%2;
-                break;
-            case XK_s:
-                g.maps.menu = (g.maps.menu+1)%2;
-                break;
-            case XK_space:
-                if(g.maps.menu == 0)
-                {
-                    initMap1();
-                    g.showMaps ^= 1;
-                }
-                else if(g.maps.menu == 1)
-                {
-                    g.showMaps ^= 1;
-                    g.title ^= 1;
-                    g.menu = 0;
-                }
-                break;
-        }
-    }
-    else if(!g.title && !g.showOptions && !g.showRes && !g.showMaps && g.showComplete) // completed map
-    {
-        switch(key)
-        {
-            case XK_Escape:
-                g.showComplete ^= 1;
-                g.title ^= 1;
-                g.menu = 0;
-                break;
-            case XK_w:
-                if(g.cmenu-1 < 0)
-                {
-                    g.cmenu = 3;
-                }
-                g.cmenu = (g.cmenu-1)%3;
-                break;
-            case XK_s:
-                g.cmenu = (g.cmenu+1)%3;
-                break;
-            case XK_space:
-                if(g.cmenu == 0)
-                {
-                    initMap1();
-                    g.showComplete ^= 1;
-                }
-                else if(g.cmenu == 1)
-                {
-                    g.showComplete ^= 1;
-                    g.showMaps ^= 1;
-                    g.maps.menu = 0;
-                }
-                else if(g.cmenu == 2)
-                {
-                    g.showComplete ^= 1;
-                    g.title ^= 1;
-                    g.menu = 0;
-                }
-                break;
-        }
-    }
-
-
-    else if(!g.title && !g.showOptions && !g.showRes && !g.showMaps) // game
+    else if(!g.title && !g.showOptions && !g.showRes) // game
     {
         switch (key) {
             case XK_Escape:
                 //quitting the program
                 //g.done=1;
                 g.title ^= 1;
-                g.menu = 0;
                 break;
             case XK_w:
                 //g.circle.center.y -= g.circle.radius*2;
                 //g.direction = 0;
-                if(g.direction == 0 && (g.circle.center.y - g.circle.radius*2) < 0 && g.maps.area[g.maps.location][0] > -1)
-                {
-                    g.circle.center.y = g.yres-g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][0];
-                }
-                else if(g.direction == 0 && (g.circle.center.y - g.circle.radius*2) > 0)
+                if(g.direction == 0 && (g.circle.center.y - g.circle.radius*2) > 0)
                     g.circle.center.y -= g.circle.radius*2;
-
-                if(g.direction == 1 && (g.circle.center.x - g.circle.radius*2) < 0 && g.maps.area[g.maps.location][1] > -1)
-                {
-                    g.circle.center.x = g.xres-g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][1];
-                }
-                else if(g.direction == 1 && (g.circle.center.x - g.circle.radius*2) > 0)
+                if(g.direction == 1 && (g.circle.center.x - g.circle.radius*2) > 0)
                     g.circle.center.x -= g.circle.radius*2;
-                
-                if(g.direction == 2 && (g.circle.center.y + g.circle.radius*2) > g.yres && g.maps.area[g.maps.location][2] > -1)
-                {
-                    g.circle.center.y = g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][2];
-                }
-                else if(g.direction == 2 && (g.circle.center.y + g.circle.radius*2) < g.yres)
+                if(g.direction == 2 && (g.circle.center.y + g.circle.radius*2) < g.yres)
                     g.circle.center.y += g.circle.radius*2;
-
-                if(g.direction == 3 && (g.circle.center.x + g.circle.radius*2) > g.xres && g.maps.area[g.maps.location][3] > -1)
-                {
-                    g.circle.center.x = g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][3];
-                }
-                else if(g.direction == 3 && (g.circle.center.x + g.circle.radius*2) < g.xres)
+                if(g.direction == 3 && (g.circle.center.x + g.circle.radius*2) < g.xres)
                     g.circle.center.x += g.circle.radius*2;
-               
-                if(g.circle.center.x/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[0] &&
-                        g.circle.center.y/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[1] &&
-                        g.maps.location == g.maps.destination)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
                 tower();
                 // NOTE: location of circle regarding grid is offset by 0.5
                 //cout << g.circle.center.x/g.grid.size << endl << g.circle.center.y/g.grid.size << endl << endl;
@@ -1294,43 +1155,6 @@ void showRes(int x, int y)
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 }
 
-void showMaps(int x, int y)
-{
-    char ts[64];
-
-    setColor3i(255,255,255);
-    sprintf(ts, "Maps");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Map1", (g.maps.menu==0)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Return", (g.maps.menu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-}
-
-void showComplete(int x, int y)
-{
-    char ts[64];
-
-    setColor3i(255,255,255);
-    sprintf(ts, "Map completed");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 32;
-    sprintf(ts, "%s Retry", (g.cmenu==0)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
-    y += 16;
-    sprintf(ts, "%s Select Map", (g.cmenu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-    
-    y += 16;
-    sprintf(ts, "%s Quit", (g.cmenu==2)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-}
 
 void render(void)
 {
@@ -1345,14 +1169,6 @@ void render(void)
     else if(g.showRes)
     {
         showRes(4, 16);
-    }
-    else if(g.showMaps)
-    {
-        showMaps(4, 16);
-    }
-    else if(g.showComplete)
-    {
-        showComplete(4, 16);
     }
     else if(!g.title && !g.showOptions)
     {
@@ -1369,21 +1185,6 @@ void render(void)
             }
         }
         showMenu(4, 16);
-
-        if(g.maps.location == g.maps.start)
-        {
-            setColor3i(100,255,255);
-            XFillRectangle(dpy, backBuffer, gc, g.maps.grid[g.maps.start].start[0]*g.grid.size, 
-                    g.maps.grid[g.maps.start].start[1]*g.grid.size,
-                    2*g.circle.radius, 2*g.circle.radius);
-        }
-        if(g.maps.location == g.maps.destination)
-        {
-            setColor3i(255,255,100);
-            XFillRectangle(dpy, backBuffer, gc, g.maps.grid[g.maps.destination].destination[0]*g.grid.size, 
-                    g.maps.grid[g.maps.destination].destination[1]*g.grid.size,
-                    2*g.circle.radius, 2*g.circle.radius);
-        }
 
         setColor3i(255,255,255);
         XDrawArc(dpy, backBuffer, gc, g.circle.center.x-g.circle.radius, g.circle.center.y-g.circle.radius, 
@@ -1555,44 +1356,4 @@ void initGrid()
     }
     //g.circle.center.x = g.xres/g.grid.size;
     //g.circle.center.y = g.yres/g.grid.size;
-}
-
-void clearMap()
-{
-    for(int i = 0; i < 10; i++)
-    {
-        for(int j = 0; j < 4; j++)
-        {
-            g.maps.area[i][j] = -1;
-        }
-        g.maps.grid[i].start[0] = -1;
-        g.maps.grid[i].start[1] = -1;
-        g.maps.grid[i].destination[0] = -1;
-        g.maps.grid[i].destination[1] = -1;
-    }
-}
-
-void initMap1()
-{
-    clearMap();
-    g.maps.area[0][3] = 1;
-    g.maps.area[1][1] = 0;
-    g.maps.area[1][0] = 2;
-    g.maps.area[2][2] = 1;
-    g.maps.area[2][3] = 3;
-    g.maps.area[3][1] = 2;
-
-    // start might not be necessary
-    // NOTE: important, how i can set circle's location to grid [5,5]
-    g.maps.grid[0].start[0] = 5;
-    g.maps.grid[0].start[1] = 5;
-    g.circle.center.x = 5*g.grid.size+g.circle.radius;
-    g.circle.center.y = 5*g.grid.size+g.circle.radius;
-    g.direction = 0;
-    g.maps.location = 0;
-    g.maps.start = 0;
-    g.maps.destination = 3;
-    
-    g.maps.grid[3].destination[0] = 10;
-    g.maps.grid[3].destination[1] = 10;
 }
