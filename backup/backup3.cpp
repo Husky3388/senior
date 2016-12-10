@@ -78,7 +78,6 @@ struct Shape
     float width, height;
     float radius;
     Vec center;
-    float color[3];
 };
 
 struct Bullet
@@ -144,13 +143,6 @@ struct Resource
     }
 };
 
-struct GResource
-{
-    int center[2];
-    float color[3];
-    int location;
-};
-
 struct Grid
 {
     int size;
@@ -159,8 +151,6 @@ struct Grid
 
     int start[2];
     int destination[2];
-
-    GResource resource[10];
 };
 
 struct Options
@@ -193,7 +183,6 @@ struct Maps
     Grid grid[10];
     int start;
     int destination;
-    int turns;
 };
 
 #define MAX_POINTS 400
@@ -288,7 +277,6 @@ struct Global {
 
         showComplete = 0;
         cmenu = 0;
-
     }
 } g;
 
@@ -310,7 +298,6 @@ void initGrid();
 
 void clearMap();
 void initMap1();
-void initMap2();
 
 int main()
 {
@@ -622,12 +609,12 @@ void checkKeys(XEvent *e)
             case XK_w:
                 if(g.maps.menu-1 < 0)
                 {
-                    g.maps.menu = 3;
+                    g.maps.menu = 2;
                 }
-                g.maps.menu = (g.maps.menu-1)%3;
+                g.maps.menu = (g.maps.menu-1)%2;
                 break;
             case XK_s:
-                g.maps.menu = (g.maps.menu+1)%3;
+                g.maps.menu = (g.maps.menu+1)%2;
                 break;
             case XK_space:
                 if(g.maps.menu == 0)
@@ -636,11 +623,6 @@ void checkKeys(XEvent *e)
                     g.showMaps ^= 1;
                 }
                 else if(g.maps.menu == 1)
-                {
-                    initMap2();
-                    g.showMaps ^= 1;
-                }
-                else if(g.maps.menu == 2)
                 {
                     g.showMaps ^= 1;
                     g.title ^= 1;
@@ -671,10 +653,7 @@ void checkKeys(XEvent *e)
             case XK_space:
                 if(g.cmenu == 0)
                 {
-                    if(g.maps.menu == 0)
-                        initMap1();
-                    else if(g.maps.menu == 1)
-                        initMap2();
+                    initMap1();
                     g.showComplete ^= 1;
                 }
                 else if(g.cmenu == 1)
@@ -721,7 +700,7 @@ void checkKeys(XEvent *e)
                 }
                 else if(g.direction == 1 && (g.circle.center.x - g.circle.radius*2) > 0)
                     g.circle.center.x -= g.circle.radius*2;
-
+                
                 if(g.direction == 2 && (g.circle.center.y + g.circle.radius*2) > g.yres && g.maps.area[g.maps.location][2] > -1)
                 {
                     g.circle.center.y = g.circle.radius;
@@ -737,7 +716,7 @@ void checkKeys(XEvent *e)
                 }
                 else if(g.direction == 3 && (g.circle.center.x + g.circle.radius*2) < g.xres)
                     g.circle.center.x += g.circle.radius*2;
-
+               
                 if(g.circle.center.x/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[0] &&
                         g.circle.center.y/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[1] &&
                         g.maps.location == g.maps.destination)
@@ -746,12 +725,6 @@ void checkKeys(XEvent *e)
                     g.cmenu = 0;
                 }
                 tower();
-                g.maps.turns--;
-                if(g.maps.turns == 0)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
                 // NOTE: location of circle regarding grid is offset by 0.5
                 //cout << g.circle.center.x/g.grid.size << endl << g.circle.center.y/g.grid.size << endl << endl;
                 break;
@@ -760,91 +733,18 @@ void checkKeys(XEvent *e)
                 //g.direction = 1;
                 g.direction = (g.direction+1)%4;
                 tower();
-                g.maps.turns--;
-                if(g.maps.turns == 0)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
                 break;
             case XK_s:
                 //g.circle.center.y += g.circle.radius*2;
                 //g.direction = 2;
-                //g.direction = (g.direction+2)%4;
-                //tower();
-                //break;
-                if(g.direction == 0 && (g.circle.center.y + g.circle.radius*2) > g.yres && g.maps.area[g.maps.location][2] > -1)
-                {
-                    g.circle.center.y = g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][2];
-                }
-                else if(g.direction == 0 && (g.circle.center.y + g.circle.radius*2) < g.yres)
-                    g.circle.center.y += g.circle.radius*2;
-
-                if(g.direction == 1 && (g.circle.center.x + g.circle.radius*2) > g.xres && g.maps.area[g.maps.location][3] > -1)
-                {
-                    g.circle.center.x = g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][3];
-                }
-                else if(g.direction == 1 && (g.circle.center.x + g.circle.radius*2) < g.xres)
-                    g.circle.center.x += g.circle.radius*2;
-
-                if(g.direction == 2 && (g.circle.center.y - g.circle.radius*2) < 0 && g.maps.area[g.maps.location][0] > -1)
-                {
-                    g.circle.center.y = g.yres-g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][0];
-                }
-                else if(g.direction == 2 && (g.circle.center.y - g.circle.radius*2) > 0)
-                    g.circle.center.y -= g.circle.radius*2;
-
-                if(g.direction == 3 && (g.circle.center.x - g.circle.radius*2) < 0 && g.maps.area[g.maps.location][1] > -1)
-                {
-                    g.circle.center.x = g.xres-g.circle.radius;
-                    g.maps.location = g.maps.area[g.maps.location][1];
-                }
-                else if(g.direction == 3 && (g.circle.center.x - g.circle.radius*2) > 0)
-                    g.circle.center.x -= g.circle.radius*2;
-
-                if(g.circle.center.x/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[0] &&
-                        g.circle.center.y/g.grid.size-.5 == g.maps.grid[g.maps.destination].destination[1] &&
-                        g.maps.location == g.maps.destination)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
+                g.direction = (g.direction+2)%4;
                 tower();
-                // NOTE: location of circle regarding grid is offset by 0.5
-                //cout << g.circle.center.x/g.grid.size << endl << g.circle.center.y/g.grid.size << endl << endl;
-                g.maps.turns--;
-                if(g.maps.turns == 0)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
                 break;
-
             case XK_d:
                 //g.circle.center.x += g.circle.radius*2;
                 //g.direction = 3;
                 g.direction = (g.direction+3)%4;
                 tower();
-                g.maps.turns--;
-                if(g.maps.turns == 0)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
-                break;
-
-            case XK_q:
-                g.direction = (g.direction+2)%4;
-                tower();
-                g.maps.turns--;
-                if(g.maps.turns == 0)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
                 break;
 
             case XK_f:
@@ -982,13 +882,7 @@ void checkKeys(XEvent *e)
                         g.resource.towers--;
                     }
                 }
-                tower();
-                g.maps.turns--;
-                if(g.maps.turns == 0)
-                {
-                    g.showComplete ^= 1;
-                    g.cmenu = 0;
-                }
+
                 break;
 
             case XK_c:
@@ -1305,14 +1199,6 @@ void showMenu(int x, int y)
         sprintf(ts, "Towers: %i", g.resource.towers);
         XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
-        if(g.maps.turns > 0)
-        {
-            y += 32;
-            setColor3i(255,255,255);
-            sprintf(ts, "Turns left: %i", g.maps.turns);
-            XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-        }
-
         if(g.options.help)
         {
             y += 32;
@@ -1418,12 +1304,8 @@ void showMaps(int x, int y)
     sprintf(ts, "%s Map1", (g.maps.menu==0)?"-->":"   ");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 
-    y += 16;
-    sprintf(ts, "%s Map2", (g.maps.menu==1)?"-->":"   ");
-    XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
     y += 32;
-    sprintf(ts, "%s Return", (g.maps.menu==2)?"-->":"   ");
+    sprintf(ts, "%s Return", (g.maps.menu==1)?"-->":"   ");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
 }
 
@@ -1442,7 +1324,7 @@ void showComplete(int x, int y)
     y += 16;
     sprintf(ts, "%s Select Map", (g.cmenu==1)?"-->":"   ");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
-
+    
     y += 16;
     sprintf(ts, "%s Quit", (g.cmenu==2)?"-->":"   ");
     XDrawString(dpy, backBuffer, gc, x, y, ts, strlen(ts));
@@ -1685,17 +1567,7 @@ void clearMap()
         g.maps.grid[i].start[1] = -1;
         g.maps.grid[i].destination[0] = -1;
         g.maps.grid[i].destination[1] = -1;
-        for(int j = 0; j < 10; j++)
-        {
-            g.maps.grid[i].resource[j].center[0] = -1;
-            g.maps.grid[i].resource[j].center[1] = -1;
-            g.maps.grid[i].resource[j].color[0] = 0;
-            g.maps.grid[i].resource[j].color[1] = 0;
-            g.maps.grid[i].resource[j].color[2] = 0;
-            g.maps.grid[i].resource[j].location = 0;
-        }
     }
-    g.maps.turns = -1;
 }
 
 void initMap1()
@@ -1717,44 +1589,7 @@ void initMap1()
     g.maps.location = 0;
     g.maps.start = 0;
     g.maps.destination = 3;
-
+    
     g.maps.grid[3].destination[0] = 10;
     g.maps.grid[3].destination[1] = 10;
-
-    g.maps.turns = -1;
-
-    for(int i = 0; i < 10; i++)
-    {
-        // change rm to something based on number of areas
-        int rm = rand() % 4;
-        int rx = rand() % (int)sizeof(g.grid.column)/4;
-        int ry = rand() % (int)sizeof(g.grid.row)/4;
-        int rabc = rand() % 3;
-
-        g.maps.grid[rm].resource[i].location = rm;
-        g.maps.grid[rm].resource[i].center[0] = rx;
-        g.maps.grid[rm].resource[i].center[1] = ry;
-        if(rabc == 0)
-            g.maps.grid[rm].resource[i].color[0] = 255;
-        if(rabc == 1)
-            g.maps.grid[rm].resource[i].color[1] = 255;
-        if(rabc == 2)
-            g.maps.grid[rm].resource[i].color[2] = 255;
-    }
-
 }
-
-void initMap2()
-{
-    clearMap();
-    g.maps.grid[0].start[0] = 5;
-    g.maps.grid[0].start[1] = 5;
-    g.circle.center.x = g.maps.grid[0].start[0] * g.grid.size + g.circle.radius;
-    g.circle.center.y = g.maps.grid[0].start[1] * g.grid.size + g.circle.radius;
-    g.direction = 0;
-    g.maps.location = 0;
-    g.maps.start = 0;
-
-    g.maps.turns = 20;
-}
-
